@@ -1,0 +1,18 @@
+.sidebar {
+    padding: 10px;
+    position: fixed;
+}
+
+.scrollbox {
+    overflow-y: auto;
+    max-height: 80vh;
+    padding-right: 5px;
+}
+
+::-webkit-scrollbar {
+    width: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: gray;
+}
