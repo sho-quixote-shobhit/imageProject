@@ -1,14 +1,12 @@
-import { Box, Button, Grid, Image, Text, useToast, useBreakpointValue, Spinner } from '@chakra-ui/react'
+import { Box, Button, Grid, Image, Text, useToast, useBreakpointValue, Spinner, Textarea } from '@chakra-ui/react'
 import React, { useRef, useState, useEffect } from 'react'
 import './HomePage.css'
 import { CiImageOn } from "react-icons/ci";
-import { FaPlus } from "react-icons/fa";
 import axios from 'axios'
 import AvatarEditor from 'react-avatar-editor';
 import { FaArrowRotateLeft } from "react-icons/fa6";
 import { FaArrowRotateRight } from "react-icons/fa6";
 import { useNavigate } from 'react-router-dom';
-
 
 const HomePage = () => {
     const toast = useToast();
@@ -16,30 +14,34 @@ const HomePage = () => {
     const navigate = useNavigate();
 
     const [loading, setLoading] = useState(false);
-    const [applyloading , setapplyloading] = useState(false);
+    const [applyloading, setapplyloading] = useState(false);
     const [selectedImage, setSelectedImage] = useState(null);
     const [removedBgImage, setRemovedBgImage] = useState(null);
     const [rotationAngle, setRotationAngle] = useState(0);
     const [scale, setScale] = useState(0.5);
-    const [preset , setpreset] = useState('Surprise me');
+    const [preset, setpreset] = useState('Surprise me');
+    const [custompreset, setcustompreset] = useState('')
+    const [finalimage, setfinalimage] = useState('')
 
-    const [themes , setthemes] = useState([]);
+    const [themes, setthemes] = useState([]);
 
     const fileInputRef = useRef(null);
     const editorRef = useRef(null);
 
-    const getthemes = async() => {
-        await axios.get('http://localhost:5000/image/themes' , {headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + localStorage.getItem('jwt')
-        }}).then(res => {
+    const getthemes = async () => {
+        await axios.get('http://localhost:5000/image/themes', {
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('jwt')
+            }
+        }).then(res => {
             console.log(setthemes(res.data))
         })
     }
 
     useEffect(() => {
         getthemes();
-    } , [])
+    }, [])
 
     useEffect(() => {
         if (selectedImage !== null) {
@@ -69,10 +71,12 @@ const HomePage = () => {
         formData.append('image', selectedImage);
 
         try {
-            const res = await axios.post('http://localhost:5000/image/remove-background', formData, {headers : {
-                'Authorization' : 'Bearer ' + localStorage.getItem('jwt')
-            }},
-            { withCredentials: true });
+            const res = await axios.post('http://localhost:5000/image/remove-background', formData, {
+                headers: {
+                    'Authorization': 'Bearer ' + localStorage.getItem('jwt')
+                }
+            },
+                { withCredentials: true });
             setRemovedBgImage(res.data.removedBgImg);
             toast({
                 title: 'Image Added!!',
@@ -109,28 +113,31 @@ const HomePage = () => {
 
     const handlePresetApply = async () => {
         if (editorRef.current) {
-            const canvas = editorRef.current.getImageScaledToCanvas(); 
-            const base64Image = canvas.toDataURL().replace(/^data:image\/png;base64,/, ""); 
+            const canvas = editorRef.current.getImageScaledToCanvas();
+            const base64Image = canvas.toDataURL().replace(/^data:image\/png;base64,/, "");
             setapplyloading(true);
-    
+
             try {
                 const res = await axios.post('http://localhost:5000/image/apply-preset', {
-                    image: base64Image, 
-                    preset
-                }, {headers : {
-                    'Content-Type' : 'application/json',
-                    'Authorization' : 'Bearer ' + localStorage.getItem('jwt')
-                }},
-                { withCredentials: true });
-    
-                if(res.data.error){
+                    image: base64Image,
+                    preset: custompreset || preset
+                }, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + localStorage.getItem('jwt')
+                    }
+                },
+                    { withCredentials: true });
+
+                if (res.data.error) {
                     toast({
-                        title : 'Error Occured!!',
-                        status : 'error'
+                        title: 'Error Occured!!',
+                        status: 'error'
                     })
                     return;
-                }else{
-                    navigate('/gallery')
+                } else {
+                    // navigate('/gallery')
+                    setfinalimage(res.data.newImg.image)
                 }
             } catch (error) {
                 console.error('Error applying preset:', error);
@@ -139,29 +146,72 @@ const HomePage = () => {
             }
         }
     };
-    
+
     const handleThemeSet = (text) => {
         setpreset(text)
     }
-    
+
+    const downloadImage = async (imageUrl) => {
+        try {
+            const response = await axios.get(imageUrl, {
+                responseType: 'blob',
+            });
+            const blob = new Blob([response.data], { type: response.data.type });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `image.jpg`;
+            link.click();
+        } catch (error) {
+            console.error('Error downloading the image:', error);
+        }
+    };
+
 
     return (
         <Box w="100%" p="30px 0px" mt="70px" overflow="auto">
             <Box w={{ base: '95%', lg: '95%' }} display="flex" m="auto">
                 {/* sidebar */}
-                <Box display={{ base: 'none', lg: 'block' }} w="350px" minWidth="350px" className="sidebar" bg="#E2F7FA" borderRadius="20px">
+                <Box
+                    display={{ base: 'none', lg: 'block' }}
+                    w="350px"
+                    minWidth="350px"
+                    className="sidebar"
+                    bg={custompreset ? "#d3d3d3" : "#E2F7FA"}
+                    borderRadius="20px"
+                    cursor={custompreset ? "not-allowed" : "pointer"}
+                    opacity={custompreset ? 0.5 : 1}
+                    pointerEvents={custompreset ? "none" : "auto"}
+                >
                     <Box display="flex" justifyContent="center">
-                        <Text bg="lightblue" me={2} py={1} px={3} borderRadius="20px" align="center" fontSize="18px" mb={4}>Presets</Text>
+                        <Text
+                            bg={custompreset ? "gray.400" : "lightblue"}
+                            me={2}
+                            py={1}
+                            px={3}
+                            borderRadius="20px"
+                            align="center"
+                            fontSize="18px"
+                            mb={4}
+                        >
+                            Presets
+                        </Text>
                     </Box>
+
+                    {themes.length === 0 ? <Box display='flex' justifyContent='center'><Spinner /></Box> : <></>}
 
                     <Box pt={4} className="scrollbox">
                         <Grid templateColumns="repeat(2, 1fr)" gap={4}>
                             {themes.length !== 0 && themes.map((item, index) => (
-                                <Box key={index} display="flex" flexDirection="column" alignItems="center" cursor="pointer"
-                                    onClick={() => {handleThemeSet(item.label)}}
-                                    border = {preset === item.label ? '1px dashed blue' : 'transparent'}
+                                <Box
+                                    key={index}
+                                    display="flex"
+                                    flexDirection="column"
+                                    alignItems="center"
+                                    cursor={custompreset ? "not-allowed" : "pointer"}
+                                    onClick={() => !custompreset && handleThemeSet(item.label)}
+                                    border={preset === item.label ? '1px dashed blue' : 'transparent'}
                                     borderRadius="20px"
-                                    
+                                    opacity={custompreset ? 0.5 : 1}
                                 >
                                     <Image
                                         borderRadius="20px"
@@ -169,8 +219,8 @@ const HomePage = () => {
                                         alt={item.text}
                                         boxSize="100px"
                                         mb={2}
-                                        transition="transform 0.3s ease"
-                                        _hover={{ transform: 'scale(1.1)' }}
+                                        transition={custompreset ? "none" : "transform 0.3s ease"}
+                                        _hover={custompreset ? {} : { transform: 'scale(1.1)' }}
                                     />
                                     <Text fontSize="16px" fontWeight="500">{item.label}</Text>
                                 </Box>
@@ -179,6 +229,7 @@ const HomePage = () => {
                     </Box>
                 </Box>
 
+
                 <Box
                     w={{ base: '100%', lg: '80%' }}
                     m={{ base: '0', lg: "0px 0px 0px 380px" }}
@@ -186,23 +237,9 @@ const HomePage = () => {
                     flexDir="column"
                     gap="40px"
                 >
-                    {/* new preset button */}
-                    <Box display="flex" justifyContent="flex-end">
-                        <Button
-                            borderRadius="20px"
-                            fontWeight="light"
-                            bg="#CAB9D2"
-                            boxShadow="0 2px 5px rgba(0, 0, 0, 0.3)"
-                            _hover={{ boxShadow: "0 4px 8px rgba(0, 0, 0, 0.2)" }}
-                            gap="5px"
-                        >
-                            <FaPlus />
-                            <Text>Add New Preset</Text>
-                        </Button>
-                    </Box>
-
                     <Box display="flex" justifyContent="center" alignItems="center">
 
+                        {/* drop your images */}
                         {!selectedImage && (
                             <Box
                                 w={{ base: '70%', lg: '50%' }}
@@ -252,7 +289,10 @@ const HomePage = () => {
                         {loading && <Spinner />}
 
                         <Box display="flex" flexDir="column">
-                            {removedBgImage && (
+
+                            {/* editor panel */}
+
+                            {removedBgImage && !finalimage && (
                                 <Box display="flex" justifyContent="center" border="0.5px dashed gray" borderRadius="20px">
                                     <AvatarEditor
                                         ref={editorRef}
@@ -267,7 +307,7 @@ const HomePage = () => {
                                 </Box>
                             )}
 
-                            {removedBgImage && (
+                            {removedBgImage && !finalimage && (
                                 <Box display="flex" flexDir="column" justifyContent="center" alignItems="center" gap="20px">
                                     <Box w="100%" display="flex" justifyContent="space-between">
                                         <Button onClick={handleRotateLeft}>
@@ -278,19 +318,40 @@ const HomePage = () => {
                                         </Button>
                                     </Box>
                                     <input type="range" min="0.1" max="2" step="0.01" value={scale} onChange={handleScaleChange} />
-                                    <Button isLoading = {applyloading} loadingText = "Adding Preset" onClick={handlePresetApply}>Generate Image</Button>
+
+                                    <Textarea
+                                        border="1px dashed black"
+                                        rows={3}
+                                        onChange={(e) => setcustompreset(e.target.value)}
+                                        placeholder="Add your custom prompt"
+                                        style={{ outline: 'none', boxShadow: 'none' }}
+                                    />
+
+                                    <Button isLoading={applyloading} loadingText="Adding Preset" onClick={handlePresetApply}>Generate Image</Button>
                                 </Box>
                             )}
 
-
-                            {/* {coloredimg &&
-                                <Box>
-                                    <Image 
-                                        src={`data:image/png;base64,${coloredimg}`}
-                                    />
-                                </Box>
-                            } */}
                         </Box>
+
+                        {finalimage &&
+                            <Box display='flex' flexDir='column' gap="20px">
+                                <Image 
+                                    src = {finalimage}
+                                />
+                                <Box
+                                    display='flex'
+                                    justifyContent='center'
+                                    gap="10px"
+                                >
+                                    <Button onClick={()=>{downloadImage(finalimage)}}>
+                                        Download
+                                    </Button>
+                                    <Button onClick={()=>{navigate('/gallery')}}>
+                                        Gallery
+                                    </Button>
+                                </Box>
+                            </Box>
+                        }
                     </Box>
                 </Box>
             </Box>
